@@ -50,7 +50,7 @@ class Item {
   }
 
   save(history) {
-    console.log("save-------history", history);
+    // console.log("save-------history", history);
     let jsonState = JSON.stringify(history);
     // 没有进行任何修改，则不产生新的历史记录
     if (jsonState === this.lastState) {
@@ -91,6 +91,10 @@ class Item {
     this.url = this.origUrl;
     this.historyList = this.historyList.slice(0, 1);
     this.historyIndex = 0;
+  }
+
+  getOriginState() {
+    console.log(" this.historyList", this.historyList);
   }
 
   getCurrState() {
@@ -182,7 +186,7 @@ class Item {
           }
         };
 
-        console.log("this.imageInf", this.imageInfo);
+        // console.log("this.imageInf", this.imageInfo);
 
         // 默认情况下 scale.width、scale.height必然不大于外层容器宽高
         // 此时对换宽高即可
