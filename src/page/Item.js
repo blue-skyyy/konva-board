@@ -15,7 +15,6 @@ class Item {
     this.imageInfo = {};
     this.originUrl = options.url;
     this.url = options.url;
-    this.lastState = null;
     this.invalid = false;
     this.rotate = 0;
     this.scaleWH = false;
@@ -50,11 +49,14 @@ class Item {
   }
 
   save(history) {
+    // console.log("history", history)
     // console.log("save-------history", history);
     let jsonState = JSON.stringify(history);
+
     // 没有进行任何修改，则不产生新的历史记录
-    if (jsonState === this.lastState) {
-      console.log("no change, return");
+    let lastState = this.getLastState();
+    if (jsonState === lastState) {
+      console.warn("no change, return");
       return;
     }
 
@@ -62,7 +64,6 @@ class Item {
     // this.url = newUrl;
 
     // 记录修改历史
-    // TODO 考虑保存历史记录数量过大的情况
     let historyList = this.historyList;
     let historyIndex = this.historyIndex;
 
@@ -75,9 +76,13 @@ class Item {
 
     historyList.push(jsonState);
     historyIndex += 1;
-    this.lastState = jsonState;
     this.historyList = historyList;
     this.historyIndex = historyIndex;
+  }
+
+  clearHistorylist() {
+    this.historyList = [];
+    this.historyIndex = -1;
   }
 
   exportImage() {
@@ -94,11 +99,13 @@ class Item {
   }
 
   getOriginState() {
-    console.log(" this.historyList", this.historyList);
+    let state = this.historyList[0];
+    this.historyIndex = 0;
+    return state;
   }
 
-  getCurrState() {
-    return this.historyList[this.historyIndex];
+  getLastState() {
+    return this.historyList[this.historyList.length - 1];
   }
 
   getPreHistory() {

@@ -32,6 +32,8 @@ import Item from "./Item.js";
 const C_WIDTH = 800;
 const C_HEIGHT = 600;
 const methods = {
+  // 切换图片复原操作
+
   // 切换工具栏模式
   switchMode(mode) {
     this.mode = mode;
@@ -46,9 +48,11 @@ const methods = {
     }
 
     if (mode === "reset") {
-      this.stage.clear();
-      console.log(this.currIndex);
-      this.switchImage(0);
+      let state = this.currItem.getOriginState();
+      this.loadCanvasFromJSON(JSON.parse(state));
+      this.currItem.clearHistorylist();
+      this.currItem.save(JSON.parse(state));
+      this.switchMode("brush")
     }
   },
   // 设置鼠标样式
@@ -84,9 +88,8 @@ const methods = {
     }
     this.stage.batchDraw();
   },
-  // 放大
+  // 
   setZoom(type) {
-    console.log("dasdada", this.bgImgLayer, this.stage.getAttr("scaleX"));
     let zoom = this.stage.getAttr("scaleX") || 1;
     if (type == "out") {
       // 放大
@@ -111,12 +114,9 @@ const methods = {
   },
   // 事件监听
   addEvent() {
-    // if (this.isMovingBgImg) return;
-    // console.log("addEvent");
     let isPaint = false;
     let lastLine;
     this.stage.on("mousedown", () => {
-      console.log("a");
       isPaint = true;
       let pos = this.stage.getPointerPosition();
       let oldScale = this.stage.scaleX();
@@ -134,12 +134,14 @@ const methods = {
     });
     this.stage.on("mouseup", () => {
       isPaint = false;
+      this.saveCurrItemState();
     });
     this.stage.on("mousemove", () => {
       let oldScale = this.stage.scaleX();
       if (!isPaint) {
         return;
       }
+      // 确保缩放功能能正常使用
       const pos = this.stage.getPointerPosition();
       let newPoints = lastLine
         .points()
@@ -150,77 +152,67 @@ const methods = {
       lastLine.points(newPoints);
       this.freeDrawLayer.batchDraw();
     });
-    // let select = document.getElementById("tool");
-    // select.addEventListener("change", function() {
-    //   mode = select.value;
-    // });
   },
   // 反序列化
   loadCanvasFromJSON(state) {
     if (!state) return;
-    this.stage = Konva.Node.create(JSON.parse(state), "image-canvas");
+    this.stage = Konva.Node.create(state, "image-canvas");
     // 添加背景图
-    this.stage.find("#bgImg").forEach((node) => {
-      let img = new Image();
-      img.src = node.getAttr("source");
-      img.onload = () => {
-        node.image(img);
-        this.stage.batchDraw();
-      };
-    });
-    // this.stage.findOne("#bgImg")
+    // 背景图片不会保存在JSON对象里
+    this.bgImgLayer = this.stage.getLayers()[0];
+    this.bgImgLayer.add(this.currItem.bgImg)
+    this.bgImgLayer.batchDraw();
+    // this.bgImgLayer.batchDraw();
     this.freeDrawLayer = this.stage.getLayers()[1];
-    this.addEvent();
     this.freeDrawLayer.batchDraw();
     this.isSwitching = false;
-    // 画笔层
-    // let const1 = this.stage.find("#free_draw_canvas");
-    // this.addEvent();
+
   },
   saveCurrItemState() {
-    console.log("dd");
     if (!this.currItem) return;
     let state = this.stage.toJSON();
     this.currItem.save(state);
   },
   toNext() {
-    this.saveCurrItemState();
+    // this.saveCurrItemState();
     this.switchImage(this.currIndex + 1);
   },
   toPrev() {
-    this.saveCurrItemState();
+    // this.saveCurrItemState();
     this.switchImage(this.currIndex - 1);
   },
   toDataUrl() {
     this.imgUrl = this.stage.toDataURL({
       x: 0,
       y: 0,
-      width: 600,
-      height: 400,
-      pixelRatio: 3
+      width: C_WIDTH,
+      height: C_HEIGHT,
+      pixelRatio: 1, // 图片质量
     });
   },
   // 加载背景图片
-  loadBackImage(itemObj, cb) {
-    const { imageInfo } = itemObj;
-    const { scale } = imageInfo;
-    Konva.Image.fromURL(itemObj.originUrl, (kImg) => {
-      kImg.setAttrs({
-        // 设置居中
-        x: this.getBgImgXYOffset(scale.width, null),
-        y: this.getBgImgXYOffset(null, scale.height),
-        id: "bgImg",
-        source: itemObj.originUrl,
-        draggable: false,
-        width: scale.width,
-        height: scale.height
+  loadBackImage(itemObj) {
+    return new Promise((reslove) => {
+      const { imageInfo } = itemObj;
+      const { scale } = imageInfo;
+      Konva.Image.fromURL(itemObj.originUrl, (kImg) => {
+        kImg.setAttrs({
+          // 设置居中
+          x: this.getBgImgXYOffset(scale.width, null),
+          y: this.getBgImgXYOffset(null, scale.height),
+          id: "bgImg",
+          draggable: false,
+          source: itemObj.originUrl,
+          width: scale.width,
+          height: scale.height
+        });
+        this.bgImgLayer.add(kImg);
+        this.bgImgLayer.batchDraw();
+        this.currItem.bgImg = kImg;
+        reslove();
+        // cb && cb();
       });
-      this.bgImgLayer.add(kImg);
-      this.bgImgLayer.batchDraw();
-      // 保存当前背景对象
-      this.currItem.bgImg = kImg;
-      cb && cb();
-    });
+    })
   },
   // 获取背景图片xy偏移量
   getBgImgXYOffset(width, height) {
@@ -239,10 +231,12 @@ const methods = {
         let bgImgLayer = new Konva.Layer();
         this.bgImgLayer = bgImgLayer;
         this.loadBackImage(itemObj, this.initFreeDrawCanvas);
-        this.stage.add(bgImgLayer);
       } else {
         this.bgImgLayer && this.bgImgLayer.removeChildren();
-        this.loadBackImage(itemObj);
+        this.loadBackImage(itemObj).then(() => {
+          this.saveCurrItemState();
+        });
+      
       }
       this.clearFreeDrawLayer();
       this.isSwitching = false;
@@ -266,11 +260,13 @@ const methods = {
     if (index < -1) return;
     if (this.isSwitching) return;
     let img = this.imageList[index];
-    if (!img) return;
+    if (!img) {
+      console.warn("图片不存在");
+      return;
+    }
     let itemObj;
     if (img && !img.isRender) {
       this.isSwitching = true;
-      console.log("首次渲染");
       // 首次渲染
       itemObj = new Item(
         {
@@ -279,47 +275,19 @@ const methods = {
         },
         () => this.afterSwitch(index, itemObj, true)
       );
+      console.log("====首次渲染=====")
       this.currIndex = index;
       this.currItem = itemObj;
       this.itemList[this.currIndex] = itemObj;
-      this.imageList[this.currIndex].isRender = true;
-
-      // this.currItem.pushHistory();
+      this.$set(this.imageList, index, Object.assign({}, {...this.imageList[index]}, {isRender: true}))
     } else {
       this.isSwitching = true;
       this.currIndex = index;
       // 非首次渲染
-      console.log("======非首次渲染=====", this.currIndex);
-      console.log(
-        "this.itemList[this.currIndex]",
-        this.itemList[this.currIndex]
-      );
+      console.log("======非首次渲染=====");
       this.currItem = this.itemList[this.currIndex];
-      console.log(" this.currItem", this.currItem);
-      let currState = this.currItem.getOriginState();
-      console.log("currState", currState);
-      this.loadCanvasFromJSON(JSON.parse(currState));
-      // this.loadBackImage(this.currItem);
-      // this.stage = Konva.Node.create(JSON.parse(currState), "image-canvas");
-      // // this.stage.find("#bgImg").
-      // let image = new Image();
-      // image.onload = () => {
-      //   this.stage.find("#bgImg")[0].image(image);
-      //   this.stage.draw();
-      // };
-      // image.src = this.currItem.originUrl;
-      // this.stage.find("#free_draw_canvas")
-      // this.freeDrawLayer.batchDraw();
-      // this.stage.batchDraw();
-
-      // this.stage.forEach((d) => {
-      //   console.log("d", d);
-      // });
-      // this.bgImgLayer.batchDraw();
-      // this.initFreeDrawCanvas();
-
-      // this.freeDrawLayer.batchDraw();
-      // this.freeDrawLayer.zIndex(99);
+      let lastState = this.currItem.getLastState();
+      this.loadCanvasFromJSON(JSON.parse(lastState));
     }
   }
 };
