@@ -144,6 +144,8 @@ class Item {
   }
 
   rotateTo(direction) {
+
+    console.log("---", this)
     let rotate = this.rotate;
 
     let diff = direction === "left" ? -90 : 90;

@@ -28,18 +28,18 @@
 import Konva from "konva";
 import { imageList } from "./util.js";
 import Item from "./Item.js";
+import { rotateAroundCenter } from "./rotate";
 
 const C_WIDTH = 800;
 const C_HEIGHT = 600;
 const methods = {
   // 切换图片复原操作
-
   // 切换工具栏模式
   switchMode(mode) {
     this.mode = mode;
     if (mode === "brush" || mode === "eraser") {
       this.addEvent();
-      this.currItem.bgImg.draggable(false);
+       this.currItem.bgImg && this.currItem.bgImg.draggable(false);
     }
     if (mode === "moveobject") {
       this.removeStageEvents();
@@ -80,25 +80,28 @@ const methods = {
   },
   // 旋转
   rotateTo(type) {
-    if (type === "left") {
-      this.stage.rotation(-90);
-    }
-    if (type === "right") {
-      this.stage.rotation(90);
-    }
+    this.setZoom("noop");
+    this.currItem.rotateTo(type);
+    const { rotate } = this.currItem;
+    rotateAroundCenter(this.currItem.bgImg, rotate)
     this.stage.batchDraw();
   },
-  // 
+  // 放大缩小
   setZoom(type) {
-    let zoom = this.stage.getAttr("scaleX") || 1;
-    if (type == "out") {
-      // 放大
-      zoom = zoom + this.zoomStep;
-      zoom = Math.min(3, zoom); //最大是原来的3倍
-    }
-    if (type === "in") {
-      zoom = zoom - this.zoomStep;
-      zoom = Math.max(0.1, zoom); //最小为原来的1/10
+    let zoom;
+    if (type === "noop") {
+      zoom = 1;
+    } else {
+        zoom = this.stage.getAttr("scaleX") || 1;
+        if (type == "out") {
+          // 放大
+          zoom = zoom + this.zoomStep;
+          zoom = Math.min(3, zoom); //最大是原来的3倍
+        }
+        if (type === "in") {
+          zoom = zoom - this.zoomStep;
+          zoom = Math.max(0.1, zoom); //最小为原来的1/10
+        }
     }
     this.stage.scale({
       x: zoom,
@@ -167,6 +170,7 @@ const methods = {
     this.freeDrawLayer.batchDraw();
     this.isSwitching = false;
 
+
   },
   saveCurrItemState() {
     if (!this.currItem) return;
@@ -204,7 +208,11 @@ const methods = {
           draggable: false,
           source: itemObj.originUrl,
           width: scale.width,
-          height: scale.height
+          height: scale.height,
+          // offset: {
+          //   x: scale.width / 2,
+          //   y: scale.height / 2
+          // }
         });
         this.bgImgLayer.add(kImg);
         this.bgImgLayer.batchDraw();
@@ -217,10 +225,10 @@ const methods = {
   // 获取背景图片xy偏移量
   getBgImgXYOffset(width, height) {
     if (width) {
-      return C_WIDTH > width ? (C_WIDTH - width) / 2 : 0;
+      return C_WIDTH > width ? Math.floor((C_WIDTH - width)) / 2 : 0;
     }
     if (height) {
-      return C_HEIGHT > height ? (C_HEIGHT - height) / 2 : 0;
+      return C_HEIGHT > height ?  Math.floor((C_HEIGHT - height)) / 2 : 0;
     }
   },
 
@@ -287,8 +295,11 @@ const methods = {
       console.log("======非首次渲染=====");
       this.currItem = this.itemList[this.currIndex];
       let lastState = this.currItem.getLastState();
+      console.log("lastState", lastState)
       this.loadCanvasFromJSON(JSON.parse(lastState));
     }
+    this.setZoom("noop");
+    this.switchMode("brush");
   }
 };
 export default {
@@ -309,7 +320,7 @@ export default {
 
     // 背景层
     this.bgImgLayer = new Konva.Layer({
-      id: "bg_image_layer"
+      id: "bg_image_layer",
     });
 
     // 绘画层
