@@ -17,7 +17,7 @@ class Item {
     this.url = options.url;
     this.invalid = false;
     this.rotate = 0;
-    this.scaleWH = false;
+    this.scaleWH = null;
     this.canvas = options.canvas;
     this.zoom = 1;
     this.conWH = options.conWH;
@@ -144,15 +144,11 @@ class Item {
   }
 
   rotateTo(direction) {
-
-    console.log("---", this)
     let rotate = this.rotate;
-
     let diff = direction === "left" ? -90 : 90;
     rotate += diff;
     if (rotate >= 360) rotate = 0;
     if (rotate <= -360) rotate = 0;
-
     this.rotate = rotate;
   }
 

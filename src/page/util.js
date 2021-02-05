@@ -1,3 +1,6 @@
+
+import Konva from "konva";
+
 const imageList = [
   // "http://lorempixel.com/400/400/fashion",
   "https://img.vipkidstatic.com/beeschool/server/20200827/235cd851-2a51-4745-b5a5-5c2451fb8e59.jpg", // 2400×1128
@@ -16,6 +19,10 @@ const imageList = [
   // "http://g.hiphotos.baidu.com/image/pic/item/6d81800a19d8bc3e770bd00d868ba61ea9d345f2.jpg"
 ];
 
+// const C_WIDTH = 1200;
+// const C_HEIGHT = 700;
+
+// 缩放后大小
 const scaleWH = (imageW, imageH, maxWidth, maxHeight) => {
   // 用于设定图片的宽度和高度
   let tempWidth;
@@ -52,4 +59,34 @@ const scaleWH = (imageW, imageH, maxWidth, maxHeight) => {
   }
 };
 
-export { scaleWH, imageList };
+ // 获取背景图片xy偏移量
+const getBgImgXYOffset = (width, height, C_WIDTH, C_HEIGHT) => {
+  if (width) {
+    return C_WIDTH > width ? Math.floor((C_WIDTH - width)) / 2 : 0;
+  }
+  if (height) {
+    return C_HEIGHT > height ?  Math.floor((C_HEIGHT - height)) / 2 : 0;
+  }
+};
+
+
+
+  
+const rotatePoint = ({ x, y }, rad) => {
+  const rcos = Math.cos(rad);
+  const rsin = Math.sin(rad);
+  return { x: x * rcos - y * rsin, y: y * rcos + x * rsin };
+};
+
+const rotateAroundCenter = (node, rotation) =>{
+  const topLeft = { x: -node.width() / 2, y: -node.height() / 2 };
+  const current = rotatePoint(topLeft, Konva.getAngle(node.rotation()));
+  const rotated = rotatePoint(topLeft, Konva.getAngle(rotation));
+  const dx = rotated.x - current.x,
+    dy = rotated.y - current.y;
+  node.rotation(rotation);
+  node.x(node.x() + dx);
+  node.y(node.y() + dy);
+};
+
+export { scaleWH, imageList, getBgImgXYOffset, rotateAroundCenter };
