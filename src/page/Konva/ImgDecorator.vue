@@ -3,30 +3,22 @@
     <div id="image-decorator-wrap" ref="image_decorator_wrap">
       <div id="image-canvas"></div>
     </div>
-
-    <div id="menu">
-      <!-- <menu-color
-        @click="switchMode"
-        class="menu_item"
-        :colorList="myConfig && myConfig.colorList"
-        :mode="mode"
-        @changeConfig="changeConfig"
-      >
-      </menu-color> -->
-    </div>
-    <button @click="switchMode('brush')">画笔模式</button>
-    <button @click="switchMode('eraser')">橡皮擦模式</button>
-    <button @click="switchMode('moveobject')">移动背景图片</button>
-    <button @click="switchMode('reset')">重置</button>
-    <img :src="imgUrl" class="img" />
-    <button @click="toDataUrl">点我下载</button>
-    <button @click="toNext">下一张</button>
-    <button @click="toPrev">上一张</button>
-    <button>{{ currIndex }}</button>
-    <button @click="setZoom('out')">放大</button>
-    <button @click="setZoom('in')">缩小</button>
-    <button @click="rotateTo('left')">向左</button>
-    <button @click="rotateTo('right')">向右</button>
+    <el-button size="mini" @click="switchMode('brush')">画笔模式</el-button>
+    <el-button size="mini" @click="switchMode('eraser')">橡皮擦模式</el-button>
+    <el-button size="mini" @click="switchMode('moveobject')"
+      >移动背景图片</el-button
+    >
+    <el-button size="mini" @click="pre">上一步</el-button>
+    <el-button size="mini" @click="next">下一步</el-button>
+    <el-button size="mini" @click="switchMode('reset')">重置</el-button>
+    <el-button size="mini" @click="toDataUrl">点我下载</el-button>
+    <el-button size="mini" @click="toNext">下一张</el-button>
+    <el-button size="mini" @click="toPrev">上一张</el-button>
+    <el-button size="mini">{{ currIndex }}</el-button>
+    <el-button size="mini" @click="setZoom('out')">放大</el-button>
+    <el-button size="mini" @click="setZoom('in')">缩小</el-button>
+    <el-button size="mini" @click="rotateTo('left')">向左</el-button>
+    <el-button size="mini" @click="rotateTo('right')">向右</el-button>
     <el-button size="mini" @click="preview">预览</el-button>
   </div>
 </template>
@@ -39,10 +31,20 @@ import {
   C_WIDTH,
   C_HEIGHT,
   rotateAroundCenter
+  // debounce
 } from "../util.js";
 import Item from "../Item.js";
+// import MenuDraw from "../menu/draw.vue";
 
 const methods = {
+  pre() {
+    const state = this.currItem.getPreHistory();
+    this.loadCanvasFromJSON(JSON.parse(state));
+  },
+  next() {
+    const state = this.currItem.getNextHistory();
+    this.loadCanvasFromJSON(JSON.parse(state));
+  },
   preview() {
     this.$emit("preview");
   },
@@ -98,8 +100,10 @@ const methods = {
     // 旋转时 缩放属性为1
     this.setZoom("noop");
     this.currItem.rotateTo(type);
+    this.removeStageEvents();
     const { rotate } = this.currItem;
-    rotateAroundCenter(this.freeDrawLayer, rotate);
+    rotateAroundCenter(this.stage, rotate);
+    this.addEvent();
     this.stage.batchDraw();
   },
   // 放大缩小
@@ -131,6 +135,32 @@ const methods = {
     this.stage.off("mousemove");
     this.stage.off("mouseup");
   },
+
+  getRotatePoint(pos, oldScale) {
+    // stage整体旋转 获取点的方法也要更改
+    const { rotate } = this.currItem;
+    return rotate === 0
+      ? [
+          pos.x / oldScale - this.stage.x() / oldScale,
+          pos.y / oldScale - this.stage.y() / oldScale
+        ]
+      : rotate === 90 || rotate === -270
+      ? [
+          pos.y / oldScale - this.stage.y() / oldScale,
+          -pos.x / oldScale + this.stage.x() / oldScale
+        ]
+      : rotate === -90 || rotate === 270
+      ? [
+          -pos.y / oldScale + this.stage.y() / oldScale,
+          pos.x / oldScale - this.stage.x() / oldScale
+        ]
+      : rotate === 180 || rotate === -180
+      ? [
+          -pos.x / oldScale + this.stage.x() / oldScale,
+          -pos.y / oldScale + this.stage.y() / oldScale
+        ]
+      : null;
+  },
   // 事件监听
   addEvent() {
     let isPaint = false;
@@ -138,16 +168,14 @@ const methods = {
     this.stage.on("mousedown", () => {
       isPaint = true;
       let pos = this.stage.getPointerPosition();
+      // console.log("pos", this.stage, pos);
       let oldScale = this.stage.scaleX();
       lastLine = new Konva.Line({
         stroke: "#df4b26",
         strokeWidth: 5,
         globalCompositeOperation:
           this.mode === "brush" ? "source-over" : "destination-out",
-        points: [
-          pos.x / oldScale - this.stage.x() / oldScale,
-          pos.y / oldScale - this.stage.y() / oldScale
-        ]
+        points: this.getRotatePoint(pos, oldScale)
       });
       this.freeDrawLayer.add(lastLine);
     });
@@ -164,10 +192,7 @@ const methods = {
       const pos = this.stage.getPointerPosition();
       let newPoints = lastLine
         .points()
-        .concat([
-          pos.x / oldScale - this.stage.x() / oldScale,
-          pos.y / oldScale - this.stage.y() / oldScale
-        ]);
+        .concat(this.getRotatePoint(pos, oldScale));
       lastLine.points(newPoints);
       this.freeDrawLayer.batchDraw();
     });
@@ -340,7 +365,7 @@ export default {
     this.stage.add(this.bgImgLayer);
     this.stage.add(this.freeDrawLayer);
 
-    this.addEvent();
+    // this.addEvent();
 
     // 组装数据格式
     this.imageList = this.imageList.map((d) => {
@@ -358,7 +383,7 @@ export default {
   },
   data() {
     return {
-      mode: "brush",
+      mode: null,
       isMovingBgImg: false,
       zoomStep: 0.1,
       stage: null,
@@ -373,7 +398,9 @@ export default {
       isSwitching: false
     };
   },
-  components: {}
+  components: {
+    // MenuDraw
+  }
 };
 </script>
 
@@ -388,30 +415,10 @@ export default {
   margin: 0 auto;
   overflow: hidden;
   background: #fff;
-  // background-image: linear-gradient(
-  //     45deg,
-  //     #ccc 25%,
-  //     transparent 25%,
-  //     transparent 75%,
-  //     #ccc 75%,
-  //     #ccc
-  //   ),
-  //   linear-gradient(
-  //     45deg,
-  //     #ccc 25%,
-  //     transparent 25%,
-  //     transparent 75%,
-  //     #ccc 75%,
-  //     #ccc
-  //   );
-  // background-size: 24px 24px;
-  // background-position: 0 0, 12px 12px;
-  // #image-canvas {
-  //   border: 1px solid yellow;
-  // }
-  // .img {
-  //   margin-top: 20px;
-  //   border: 1px solid blue;
-  // }
+}
+#menu {
+  background: red;
+  width: 100%;
+  height: 50px;
 }
 </style>

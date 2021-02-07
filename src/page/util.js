@@ -1,4 +1,3 @@
-
 import Konva from "konva";
 
 const imageList = [
@@ -59,26 +58,24 @@ const scaleWH = (imageW, imageH, maxWidth, maxHeight) => {
   }
 };
 
- // 获取背景图片xy偏移量
+// 获取背景图片xy偏移量
 const getBgImgXYOffset = (width, height, C_WIDTH, C_HEIGHT) => {
   if (width) {
-    return C_WIDTH > width ? Math.floor((C_WIDTH - width)) / 2 : 0;
+    return C_WIDTH > width ? Math.floor(C_WIDTH - width) / 2 : 0;
   }
   if (height) {
-    return C_HEIGHT > height ?  Math.floor((C_HEIGHT - height)) / 2 : 0;
+    return C_HEIGHT > height ? Math.floor(C_HEIGHT - height) / 2 : 0;
   }
 };
 
-
-
-  
+// 旋转中心点
 const rotatePoint = ({ x, y }, rad) => {
   const rcos = Math.cos(rad);
   const rsin = Math.sin(rad);
   return { x: x * rcos - y * rsin, y: y * rcos + x * rsin };
 };
 
-const rotateAroundCenter = (node, rotation) =>{
+const rotateAroundCenter = (node, rotation) => {
   const topLeft = { x: -node.width() / 2, y: -node.height() / 2 };
   const current = rotatePoint(topLeft, Konva.getAngle(node.rotation()));
   const rotated = rotatePoint(topLeft, Konva.getAngle(rotation));
@@ -89,4 +86,17 @@ const rotateAroundCenter = (node, rotation) =>{
   node.y(node.y() + dy);
 };
 
-export { scaleWH, imageList, getBgImgXYOffset, rotateAroundCenter };
+// 防抖
+const debounce = (fn, delay) => {
+  let timer = null;
+  return function() {
+    // let that = this;
+    let args = arguments;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      fn.apply(this, args);
+    }, delay);
+  };
+};
+
+export { scaleWH, imageList, getBgImgXYOffset, rotateAroundCenter, debounce };

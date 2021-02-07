@@ -25,17 +25,6 @@ class Item {
     this.scaleX = 1;
     this.scaleY = 1;
 
-    // 获取图片size，同时检测图片是否合法
-    // TODO 考虑改为异步执行
-    // this._getImageSize((err) => {
-    //   if (err) {
-    //     this.invalid = true;
-    //     this.url = "hdasda";
-    //   }
-
-    //   cb(err);
-    // });
-
     this._getImageInfo()
       .then(() => {
         // do somehting
@@ -190,40 +179,6 @@ class Item {
             height
           }
         };
-
-        // console.log("this.imageInf", this.imageInfo);
-
-        // 默认情况下 scale.width、scale.height必然不大于外层容器宽高
-        // 此时对换宽高即可
-        // if (scale.width <= conWH.height || scale.height <= conWH.width) {
-        //   // scale 宽高都小于容器宽高情况
-        //   this.imageInfo.scrollWH = {
-        //     width: scale.height,
-        //     height: scale.width,
-        //     toSmall: 1,
-        //     toBig: 1
-        //   };
-        // }
-        // 旋转之后 宽高对调 保证不出现滚动条
-        // if (width > h) {
-        //   let scrollWH = scaleWH(height, width, w, h);
-        //   this.imageInfo.scrollWH = {
-        //     width: scrollWH.width,
-        //     height: scrollWH.height,
-        //     toSmall: Number(scrollWH.height / width),
-        //     toBig: Number(width / scrollWH.height)
-        //   };
-        // }
-        // if (height > w) {
-        //   let scrollWH = scaleWH(width, height, w, h);
-        //   this.imageInfo.scrollWH = {
-        //     width: scrollWH.width,
-        //     height: scrollWH.height,
-        //     toSmall: Number(scrollWH.width / height),
-        //     toBig: Number(height / scrollWH.width)
-        //   };
-        // }
-
         resolve("ok");
       };
       img.onerror = (err) => {
